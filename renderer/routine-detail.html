@@ -146,6 +146,8 @@ async function checkCodeExists() {
   document.getElementById('codeStatus').textContent = has
     ? '✅ 테스트 코드 있음'
     : '⚪ 테스트 코드 없음';
+  document.getElementById('tabCode').style.display = has ? '' : 'none';
+  if (!has && currentMode === 'code') setMode('view');
 }
 
 async function saveRoutine() {
