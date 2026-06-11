@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>설정 및 요구사항</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .req-section { margin-bottom: 32px; }
+  .req-section h2 { font-size: 15px; font-weight: 700; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .req-item { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .req-item:last-child { border-bottom: none; }
+  .req-icon { font-size: 20px; flex-shrink: 0; }
+  .req-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .req-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+  .req-desc code { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: var(--mono); font-size: 12px; color: var(--text); }
+  .badge-required { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: #fee2e2; color: var(--danger); margin-left: 6px; vertical-align: middle; }
+  .badge-optional { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--surface2); color: var(--text-muted); margin-left: 6px; vertical-align: middle; }
+  .usage-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .usage-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; }
+  .usage-box .u-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .usage-box .u-pct { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .usage-box .u-bar-bg { background: var(--surface2); border-radius: 999px; height: 6px; overflow: hidden; }
+  .usage-box .u-bar-fill { height: 6px; border-radius: 999px; background: var(--accent); transition: width 0.4s; }
+  .usage-box .u-reset { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sidebar-logo">🤖 Test Runner<br><span>Puppeteer + Claude</span></div>
+    <a class="nav-item" onclick="navigate('skills.html')">📦 스킬</a>
+    <a class="nav-item" onclick="navigate('routines.html')">📋 루틴</a>
+    <a class="nav-item" onclick="navigate('results.html')">📊 결과</a>
+    <div style="margin-top:auto"></div>
+    <a class="nav-item active" onclick="navigate('info.html')">ℹ️ 정보</a>
+  </nav>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <div class="page-title">정보</div>
+        <div class="page-subtitle">앱을 사용하기 위해 필요한 환경 조건</div>
+      </div>
+    </div>
+
+    <!-- Claude 사용량 -->
+    <div class="req-section">
+      <h2>Claude 사용량 <button class="btn btn-secondary" onclick="loadUsage()" style="font-size:11px;padding:4px 10px;margin-left:8px">↻ 새로고침</button></h2>
+      <div id="usageArea">
+        <div class="text-muted" style="padding:12px 0;font-size:13px">불러오는 중...</div>
+      </div>
+    </div>
+
+    <!-- 필수 요구사항 -->
+    <div class="req-section">
+      <h2>필수 요구사항</h2>
+
+      <div class="req-item">
+        <div class="req-icon">🟢</div>
+        <div>
+          <div class="req-title">Node.js <span class="badge-required">필수</span></div>
+          <div class="req-desc">
+            <b>v18 이상</b> 설치 필요. Puppeteer 21.x 및 Electron 실행에 사용됩니다.<br>
+            설치 확인: <code>node -v</code><br>
+            다운로드: <code>https://nodejs.org</code>
+          </div>
+        </div>
+      </div>
+
+      <div class="req-item">
+        <div class="req-icon">🤖</div>
+        <div>
+          <div class="req-title">Claude CLI <span class="badge-required">필수</span></div>
+          <div class="req-desc">
+            Anthropic에서 제공하는 CLI 도구. 테스트 코드 생성에 사용됩니다.<br>
+            설치 확인: <code>claude --version</code><br>
+            설치 방법: <code>npm install -g @anthropic-ai/claude-code</code>
+          </div>
+        </div>
+      </div>
+
+      <div class="req-item">
+        <div class="req-icon">🌐</div>
+        <div>
+          <div class="req-title">Claude for Chrome 활성화 <span class="badge-required">필수</span></div>
+          <div class="req-desc">
+            Claude CLI의 <code>--chrome</code> 플래그 기능. 활성화되어 있지 않으면 코드 생성 시 오류가 발생합니다.<br>
+            활성화 방법: Claude CLI 실행 후 <code>/chrome</code> 명령어 입력하거나 <code>claude --chrome</code> 으로 실행
+          </div>
+        </div>
+      </div>
+
+      <div class="req-item">
+        <div class="req-icon">📦</div>
+        <div>
+          <div class="req-title">Puppeteer 21.x <span class="badge-required">필수</span></div>
+          <div class="req-desc">
+            앱 설치 시 <code>npm install</code>로 자동 설치됩니다. 생성된 테스트 코드 실행에 사용됩니다.<br>
+            설치 확인: <code>node -e "require('puppeteer')"</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 스킬 설정 -->
+    <div class="req-section">
+      <h2>스킬 설정</h2>
+
+      <div class="req-item">
+        <div class="req-icon">🗂️</div>
+        <div>
+          <div class="req-title">test-generator 스킬 등록 <span class="badge-required">필수</span></div>
+          <div class="req-desc">
+            Claude CLI가 테스트 코드를 생성할 때 사용하는 스킬입니다.<br>
+            스킬 탭에서 <b>저장</b> 버튼을 눌러 Claude CLI 스킬 경로에 저장하세요.<br>
+            저장 경로: <code>~/.claude/skills/test-generator/SKILL.md</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 권장 환경 -->
+    <div class="req-section">
+      <h2>권장 환경</h2>
+
+      <div class="req-item">
+        <div class="req-icon">💻</div>
+        <div>
+          <div class="req-title">운영체제 <span class="badge-optional">권장</span></div>
+          <div class="req-desc">
+            Windows 10/11, macOS 12 이상 권장.<br>
+            Claude for Chrome 기능은 Chrome 브라우저가 설치되어 있어야 합니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="req-item">
+        <div class="req-icon">💳</div>
+        <div>
+          <div class="req-title">Anthropic Pro 구독 <span class="badge-optional">권장</span></div>
+          <div class="req-desc">
+            Claude CLI 사용량이 많을 경우 Pro 플랜을 권장합니다.<br>
+            무료 플랜은 사용량 제한으로 인해 코드 생성 도중 중단될 수 있습니다.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script>
+function navigate(page) { window.api.navigate(page); }
+
+async function loadUsage() {
+  const el = document.getElementById('usageArea');
+  el.innerHTML = '<div class="text-muted" style="padding:12px 0;font-size:13px">불러오는 중...</div>';
+
+  const data = await window.api.claudeUsage();
+
+  if (!data.ok || (!data.session && !data.week)) {
+    el.innerHTML = '';
+    return;
+  }
+
+  const barColor = (pct) => pct >= 80 ? 'var(--danger)' : pct >= 50 ? 'var(--warning)' : 'var(--accent)';
+
+  const box = (label, info) => info ? `
+    <div class="usage-box">
+      <div class="u-label">${label}</div>
+      <div class="u-pct" style="color:${barColor(info.pct)}">${info.pct}%</div>
+      <div class="u-bar-bg"><div class="u-bar-fill" style="width:${info.pct}%;background:${barColor(info.pct)}"></div></div>
+      <div class="u-reset">리셋: ${info.resets}</div>
+    </div>` : '';
+
+  el.innerHTML = `<div class="usage-grid">${box('현재 세션', data.session)}${box('이번 주 (전체)', data.week)}</div>`;
+}
+
+loadUsage();
+</script>
+</body>
+</html>

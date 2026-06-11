@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>루틴 상세</title>
+<link rel="stylesheet" href="style.css">
+<script src="../node_modules/marked/lib/marked.umd.js"></script>
+<style>
+  .editor-area { width: 100%; min-height: 320px; font-family: var(--mono); font-size: 13px; }
+  .md-preview {
+    min-height: 320px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+  }
+  .action-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+  .section-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .generate-log { margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sidebar-logo">🤖 Test Runner<br><span>Puppeteer + Claude</span></div>
+    <a class="nav-item" onclick="navigate('skills.html')">📦 스킬</a>
+    <a class="nav-item active" onclick="navigate('routines.html')">📋 루틴</a>
+    <a class="nav-item" onclick="navigate('results.html')">📊 결과</a>
+    <div style="margin-top:auto"></div>
+    <a class="nav-item" onclick="navigate('info.html')">ℹ️ 정보</a>
+  </nav>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <div class="page-title" id="routineTitle">루틴</div>
+        <div class="page-subtitle">루틴 편집 및 실행</div>
+      </div>
+      <button class="btn btn-secondary" onclick="navigate('routines.html')">← 목록으로</button>
+    </div>
+
+    <!-- 뷰/편집 탭 -->
+    <div class="tabs">
+      <div class="tab" id="tabView" onclick="setMode('view')">미리보기</div>
+      <div class="tab active" id="tabEdit" onclick="setMode('edit')">편집</div>
+    </div>
+
+    <!-- 편집 모드 -->
+    <div id="editPane">
+      <textarea class="editor-area" id="editor" placeholder="테스트 루틴을 마크다운으로 작성하세요..."></textarea>
+    </div>
+
+    <!-- 뷰 모드 -->
+    <div id="viewPane" style="display:none">
+      <div class="md-preview md-body" id="preview"></div>
+    </div>
+
+    <!-- 편집 모드 액션 -->
+    <div id="editActions" class="action-bar">
+      <button class="btn btn-secondary" onclick="saveRoutine()">💾 저장</button>
+    </div>
+
+    <!-- 미리보기 모드 액션 -->
+    <div id="viewActions" class="action-bar" style="display:none">
+      <button class="btn btn-primary" id="btnGenerate" onclick="generateCode()">
+        <span class="spinner" id="genSpinner" style="display:none"></span>
+        ⚡ 테스트 코드 생성
+      </button>
+      <button class="btn btn-danger" id="btnCancel" onclick="cancelGenerate()" style="display:none">■ 중단</button>
+      <button class="btn btn-success" id="btnRun" onclick="runTest()" disabled>▶ 실행</button>
+      <span id="codeStatus" class="text-muted" style="font-size:12px"></span>
+    </div>
+
+    <!-- Generate Log -->
+    <div class="generate-log" id="logSection" style="display:none">
+      <div class="section-label mt-20">Claude 출력</div>
+      <div class="log-stream" id="logStream"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const name = sessionStorage.getItem('routineName') || '';
+let currentMode = 'edit';
+
+function navigate(page) { window.api.navigate(page); }
+
+document.getElementById('routineTitle').textContent = name;
+
+function setMode(mode) {
+  currentMode = mode;
+  const isEdit = mode === 'edit';
+
+  document.getElementById('tabEdit').classList.toggle('active', isEdit);
+  document.getElementById('tabView').classList.toggle('active', !isEdit);
+  document.getElementById('editPane').style.display = isEdit ? 'block' : 'none';
+  document.getElementById('viewPane').style.display = isEdit ? 'none' : 'block';
+  document.getElementById('editActions').style.display = isEdit ? 'flex' : 'none';
+  document.getElementById('viewActions').style.display = isEdit ? 'none' : 'flex';
+
+  if (!isEdit) {
+    const content = document.getElementById('editor').value;
+    document.getElementById('preview').innerHTML = marked.parse(content);
+  }
+}
+
+async function load() {
+  const content = await window.api.routinesRead(name);
+  document.getElementById('editor').value = content;
+
+  const isNew = sessionStorage.getItem('routineIsNew') === '1';
+  sessionStorage.removeItem('routineIsNew');
+  setMode(isNew ? 'edit' : 'view');
+
+  checkCodeExists();
+}
+
+async function checkCodeExists() {
+  const has = await window.api.runHasCode(name);
+  document.getElementById('btnRun').disabled = !has;
+  document.getElementById('codeStatus').textContent = has
+    ? '✅ 테스트 코드 있음'
+    : '⚪ 테스트 코드 없음';
+}
+
+async function saveRoutine() {
+  const content = document.getElementById('editor').value;
+  await window.api.routinesUpdate(name, content);
+  showToast('저장되었습니다.');
+}
+
+async function generateCode() {
+  await saveRoutine();
+  const btn = document.getElementById('btnGenerate');
+  const btnCancel = document.getElementById('btnCancel');
+  const spinner = document.getElementById('genSpinner');
+  btn.disabled = true;
+  spinner.style.display = 'inline-block';
+  btnCancel.style.display = 'inline-flex';
+
+  document.getElementById('logSection').style.display = 'block';
+  const logEl = document.getElementById('logStream');
+  logEl.textContent = '';
+
+  const unsubscribe = window.api.onGenerateLog((data) => {
+    logEl.textContent += data;
+    logEl.scrollTop = logEl.scrollHeight;
+  });
+
+  const res = await window.api.runGenerate(name);
+  unsubscribe();
+
+  btn.disabled = false;
+  spinner.style.display = 'none';
+  btnCancel.style.display = 'none';
+
+  if (res.cancelled) {
+    showToast('생성이 중단되었습니다.', true);
+  } else if (res.ok) {
+    showToast('코드 생성 완료!');
+    checkCodeExists();
+  } else {
+    showToast('생성 실패. 로그를 확인하세요.', true);
+  }
+}
+
+async function cancelGenerate() {
+  await window.api.runCancel();
+}
+
+async function runTest() {
+  const btn = document.getElementById('btnRun');
+  btn.disabled = true;
+  btn.textContent = '⏳ 실행 중...';
+
+  const res = await window.api.runExecute(name);
+  btn.textContent = '▶ 실행';
+  checkCodeExists();
+
+  if (res.ok) {
+    sessionStorage.setItem('resultId', res.id);
+    window.api.navigate('result-detail.html');
+  } else {
+    showToast('실행 실패: ' + res.error, true);
+  }
+}
+
+function showToast(msg, isError = false) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  Object.assign(t.style, {
+    position: 'fixed', bottom: '24px', right: '24px',
+    background: isError ? 'var(--danger)' : 'var(--success)',
+    color: '#fff', padding: '10px 18px', borderRadius: '8px',
+    fontSize: '13px', fontWeight: '600', zIndex: 999,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+  });
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>결과 목록</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sidebar-logo">🤖 Test Runner<br><span>Puppeteer + Claude</span></div>
+    <a class="nav-item" onclick="navigate('skills.html')">📦 스킬</a>
+    <a class="nav-item" onclick="navigate('routines.html')">📋 루틴</a>
+    <a class="nav-item active" onclick="navigate('results.html')">📊 결과</a>
+    <div style="margin-top:auto"></div>
+    <a class="nav-item" onclick="navigate('info.html')">ℹ️ 정보</a>
+  </nav>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <div class="page-title">결과</div>
+        <div class="page-subtitle">테스트 실행 결과 목록</div>
+      </div>
+      <button class="btn btn-secondary" onclick="load()">↻ 새로고침</button>
+    </div>
+    <div id="list"></div>
+  </main>
+</div>
+
+<script>
+function navigate(page) { window.api.navigate(page); }
+
+function fmt(iso) {
+  const d = new Date(iso);
+  return d.toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+
+async function load() {
+  const results = await window.api.resultsList();
+  const el = document.getElementById('list');
+  if (!results.length) {
+    el.innerHTML = `<div class="empty"><p>아직 실행 결과가 없습니다.<br>루틴을 실행하면 여기에 표시됩니다.</p></div>`;
+    return;
+  }
+  el.innerHTML = results.map(r => `
+    <div class="card" onclick="openResult('${r.id}')">
+      <div class="row">
+        <div class="flex-1">
+          <div class="card-title">📄 ${r.routineName}</div>
+          <div class="card-meta">${fmt(r.executedAt)} &nbsp;·&nbsp; ${r.id}</div>
+        </div>
+        <span class="badge badge-${r.status}">${r.status === 'success' ? '✓ 성공' : '✗ 실패'}</span>
+        <button class="btn btn-danger" onclick="event.stopPropagation(); deleteResult('${r.id}')">삭제</button>
+      </div>
+    </div>`).join('');
+}
+
+function openResult(id) {
+  sessionStorage.setItem('resultId', id);
+  window.api.navigate('result-detail.html');
+}
+
+async function deleteResult(id) {
+  await window.api.resultsDelete(id);
+  load();
+}
+
+load();
+</script>
+</body>
+</html>

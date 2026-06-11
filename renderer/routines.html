@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>루틴 목록</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">🤖 Test Runner<br><span>Puppeteer + Claude</span></div>
+    <a class="nav-item" onclick="navigate('skills.html')">📦 스킬</a>
+    <a class="nav-item active" onclick="navigate('routines.html')">📋 루틴</a>
+    <a class="nav-item" onclick="navigate('results.html')">📊 결과</a>
+    <div style="margin-top:auto"></div>
+    <a class="nav-item" onclick="navigate('info.html')">ℹ️ 정보</a>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <div class="page-title">루틴</div>
+        <div class="page-subtitle">테스트 루틴 목록 관리</div>
+      </div>
+      <button class="btn btn-primary" onclick="showCreate()">+ 새 루틴</button>
+    </div>
+
+    <div id="list"></div>
+  </main>
+</div>
+
+<!-- Create Modal -->
+<div class="modal-backdrop" id="createModal" style="display:none">
+  <div class="modal">
+    <h3>새 루틴 만들기</h3>
+    <input type="text" id="newName" placeholder="루틴 이름 (영문, 숫자, 한글, -, _)" style="width:100%" />
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="hideCreate()">취소</button>
+      <button class="btn btn-primary" onclick="createRoutine()">만들기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function navigate(page) { window.api.navigate(page); }
+
+async function load() {
+  const names = await window.api.routinesList();
+  const el = document.getElementById('list');
+  if (!names.length) {
+    el.innerHTML = `<div class="empty"><p>루틴이 없습니다.<br>+ 새 루틴으로 시작하세요.</p></div>`;
+    return;
+  }
+  el.innerHTML = names.map(n => `
+    <div class="card" onclick="openRoutine('${n}')">
+      <div class="row">
+        <div class="flex-1">
+          <div class="card-title">📄 ${n}</div>
+          <div class="card-meta">${n}.md</div>
+        </div>
+        <button class="btn btn-danger" onclick="event.stopPropagation(); deleteRoutine('${n}')">삭제</button>
+      </div>
+    </div>`).join('');
+}
+
+function openRoutine(name) {
+  sessionStorage.setItem('routineName', name);
+  window.api.navigate('routine-detail.html');
+}
+
+async function deleteRoutine(name) {
+  if (!confirm(`"${name}" 루틴을 삭제할까요?`)) return;
+  await window.api.routinesDelete(name);
+  load();
+}
+
+function showCreate() {
+  document.getElementById('createModal').style.display = 'flex';
+  document.getElementById('newName').value = '';
+  setTimeout(() => document.getElementById('newName').focus(), 50);
+}
+function hideCreate() { document.getElementById('createModal').style.display = 'none'; }
+
+async function createRoutine() {
+  const name = document.getElementById('newName').value.trim();
+  if (!name) return;
+  const res = await window.api.routinesCreate(name);
+  if (!res.ok) { alert(res.error); return; }
+  hideCreate();
+  sessionStorage.setItem('routineName', res.name);
+  sessionStorage.setItem('routineIsNew', '1');
+  window.api.navigate('routine-detail.html');
+}
+
+document.getElementById('newName').addEventListener('keydown', e => { if (e.key === 'Enter') createRoutine(); });
+
+load();
+</script>
+</body>
+</html>

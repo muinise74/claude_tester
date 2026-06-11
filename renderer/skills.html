@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>스킬 목록</title>
+<link rel="stylesheet" href="style.css">
+<script src="../node_modules/marked/lib/marked.umd.js"></script>
+<style>
+  .skill-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
+  .skill-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; cursor: pointer; }
+  .skill-header:hover { background: var(--surface2); }
+  .skill-body { padding: 0 24px 24px; display: none; }
+  .skill-body.open { display: block; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sidebar-logo">🤖 Test Runner<br><span>Puppeteer + Claude</span></div>
+    <a class="nav-item active" onclick="navigate('skills.html')">📦 스킬</a>
+    <a class="nav-item" onclick="navigate('routines.html')">📋 루틴</a>
+    <a class="nav-item" onclick="navigate('results.html')">📊 결과</a>
+    <div style="margin-top:auto"></div>
+    <a class="nav-item" onclick="navigate('info.html')">ℹ️ 정보</a>
+  </nav>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <div class="page-title">스킬</div>
+        <div class="page-subtitle">skills/ 디렉토리의 SKILL.md 목록</div>
+      </div>
+    </div>
+    <div id="list"></div>
+  </main>
+</div>
+
+<script>
+function navigate(page) { window.api.navigate(page); }
+
+async function load() {
+  const skills = await window.api.skillsList();
+  const el = document.getElementById('list');
+  if (!skills.length) {
+    el.innerHTML = `<div class="empty"><p>스킬이 없습니다.<br><code>skills/스킬명/SKILL.md</code> 파일을 추가하세요.</p></div>`;
+    return;
+  }
+  for (const name of skills) {
+    const content = await window.api.skillsRead(name);
+    const card = document.createElement('div');
+    card.className = 'skill-card';
+    card.innerHTML = `
+      <div class="skill-header" onclick="toggle(this)">
+        <div>
+          <div class="card-title">📦 ${name}</div>
+          <div class="card-meta">skills/${name}/SKILL.md</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-secondary" onclick="event.stopPropagation(); saveSkill('${name}')">💾 저장</button>
+          <span style="color:var(--text-muted);font-size:18px" id="arrow-${name}">▶</span>
+        </div>
+      </div>
+      <div class="skill-body" id="body-${name}">
+        <div class="md-body">${marked.parse(content)}</div>
+      </div>`;
+    el.appendChild(card);
+  }
+}
+
+function toggle(header) {
+  const name = header.querySelector('.card-title').textContent.replace('📦 ', '');
+  const body = document.getElementById('body-' + name);
+  const arrow = document.getElementById('arrow-' + name);
+  const open = body.classList.toggle('open');
+  arrow.textContent = open ? '▼' : '▶';
+}
+
+async function saveSkill(name) {
+  const res = await window.api.skillsSaveDialog(name);
+  if (res.ok) showToast(`저장됨: ${res.filePath}`);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  Object.assign(t.style, {
+    position:'fixed', bottom:'24px', right:'24px',
+    background:'var(--success)', color:'#fff', padding:'10px 18px',
+    borderRadius:'8px', fontSize:'13px', fontWeight:'600', zIndex:999,
+    boxShadow:'0 4px 12px rgba(0,0,0,0.3)'
+  });
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+load();
+</script>
+</body>
+</html>

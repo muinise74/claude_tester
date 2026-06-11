@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>결과 상세</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+  .meta-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; }
+  .meta-box .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .meta-box .value { font-size: 15px; font-weight: 700; }
+  .section-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 20px 0 8px; }
+  .error-item {
+    background: rgba(239,68,68,0.06);
+    border: 1px solid rgba(239,68,68,0.25);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .error-msg {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--danger);
+    margin-bottom: 10px;
+    word-break: break-all;
+  }
+  .error-screenshot {
+    max-width: 100%;
+    max-height: 280px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    object-fit: contain;
+  }
+  .error-screenshot:hover { border-color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sidebar-logo">🤖 Test Runner<br><span>Puppeteer + Claude</span></div>
+    <a class="nav-item" onclick="navigate('skills.html')">📦 스킬</a>
+    <a class="nav-item" onclick="navigate('routines.html')">📋 루틴</a>
+    <a class="nav-item active" onclick="navigate('results.html')">📊 결과</a>
+    <div style="margin-top:auto"></div>
+    <a class="nav-item" onclick="navigate('info.html')">ℹ️ 정보</a>
+  </nav>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <div class="page-title" id="pageTitle">결과 상세</div>
+        <div class="page-subtitle" id="pageId"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-danger" onclick="deleteResult()">삭제</button>
+        <button class="btn btn-secondary" onclick="navigate('results.html')">← 목록으로</button>
+      </div>
+    </div>
+
+    <!-- 메타 정보 -->
+    <div class="meta-grid">
+      <div class="meta-box">
+        <div class="label">루틴</div>
+        <div class="value" id="metaRoutine">-</div>
+      </div>
+      <div class="meta-box">
+        <div class="label">실행 시각</div>
+        <div class="value" id="metaTime">-</div>
+      </div>
+      <div class="meta-box">
+        <div class="label">상태</div>
+        <div class="value" id="metaStatus">-</div>
+      </div>
+    </div>
+
+    <!-- 실행 로그 -->
+    <div class="section-label">실행 로그</div>
+    <pre id="log" class="code-block" style="max-height:220px;overflow-y:auto"></pre>
+
+    <!-- 에러 목록 -->
+    <div id="errorsSection" style="display:none">
+      <div class="section-label" style="color:var(--danger)">에러 목록</div>
+      <div id="errorsList"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+function navigate(page) { window.api.navigate(page); }
+
+function fmt(iso) {
+  return new Date(iso).toLocaleString('ko-KR');
+}
+
+async function load() {
+  const id = sessionStorage.getItem('resultId');
+  if (!id) { navigate('results.html'); return; }
+
+  const r = await window.api.resultsRead(id);
+  if (!r) { navigate('results.html'); return; }
+
+  document.getElementById('pageTitle').textContent = r.routineName;
+  document.getElementById('pageId').textContent = r.id;
+  document.getElementById('metaRoutine').textContent = r.routineName;
+  document.getElementById('metaTime').textContent = fmt(r.executedAt);
+
+  const statusEl = document.getElementById('metaStatus');
+  const isSuccess = r.status === 'success';
+  statusEl.innerHTML = isSuccess
+    ? '<span class="badge badge-success">✓ 성공</span>'
+    : '<span class="badge badge-failure">✗ 실패</span>';
+
+  document.getElementById('log').textContent = r.log || '(출력 없음)';
+
+  const errors = r.errors || [];
+  if (errors.length) {
+    document.getElementById('errorsSection').style.display = 'block';
+    document.getElementById('errorsList').innerHTML = errors.map((e, i) => `
+      <div class="error-item">
+        <div class="error-msg">[${i + 1}] ${escHtml(e.message || '')}</div>
+        ${e.screenshot
+          ? `<img class="error-screenshot" src="../${e.screenshot}" alt="error screenshot" onclick="window.open('../${e.screenshot}')" />`
+          : '<span class="text-muted" style="font-size:12px">스크린샷 없음</span>'
+        }
+      </div>`).join('');
+  }
+}
+
+async function deleteResult() {
+  const id = sessionStorage.getItem('resultId');
+  await window.api.resultsDelete(id);
+  window.api.navigate('results.html');
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+load();
+</script>
+</body>
+</html>
