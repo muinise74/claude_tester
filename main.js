@@ -114,6 +114,17 @@ ipcMain.handle('routines:delete', (_, name) => {
   return { ok: true };
 });
 
+// ── Test Code ─────────────────────────────────────────────
+ipcMain.handle('test:read', (_, name) => {
+  const p = path.join(TEST_DIR, `${name}.js`);
+  return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null;
+});
+
+ipcMain.handle('test:save', (_, name, content) => {
+  fs.writeFileSync(path.join(TEST_DIR, `${name}.js`), content, 'utf8');
+  return { ok: true };
+});
+
 // ── Run: Generate ─────────────────────────────────────────
 let generateProc = null;
 
@@ -129,7 +140,7 @@ ipcMain.handle('run:generate', async (event, name) => {
   const routinePath = path.join(ROUTINES_DIR, `${name}.md`);
   const testOutputPath = path.join(TEST_DIR, `${name}.js`); // 생성 여부 확인용
 
-  const prompt = `/test_generator\n\n루틴 파일: ${routinePath}`;
+  const prompt = `/test_generator\n\n루틴 파일: ${routinePath}\n테스트 코드 저장 경로: ${testOutputPath}`;
 
   return new Promise((resolve) => {
     generateProc = spawn('claude', ['-p', prompt, '--dangerously-skip-permissions', '--chrome'], {
@@ -174,34 +185,50 @@ ipcMain.handle('run:has-code', (_, name) => {
 // ── Run: Execute ──────────────────────────────────────────
 ipcMain.handle('run:execute', async (event, name) => {
   const testFile = path.join(TEST_DIR, `${name}.js`);
-  if (!fs.existsSync(testFile)) return { ok: false, error: '테스트 코드가 없습니다.' };
+  if (!fs.existsSync(testFile)) {
+    const id = uniqueResultId(name);
+    const resultPath = path.join(RESULTS_DIR, `${id}.json`);
+    const result = {
+      id,
+      routineName: name,
+      executedAt: new Date().toISOString(),
+      status: 'fail',
+      log: '',
+      errors: [{ message: `File not found: ${testFile}`, screenshot: null }]
+    };
+    fs.writeFileSync(resultPath, JSON.stringify(result, null, 2), 'utf8');
+    return { ok: true, id };
+  }
 
   // Generate unique result path here — pass it to the Puppeteer script as argv[2]
   const id = uniqueResultId(name);
   const resultPath = path.join(RESULTS_DIR, `${id}.json`);
 
+  const NODE_PATH = app.isPackaged
+    ? path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules')
+    : path.join(__dirname, 'node_modules');
+
   return new Promise((resolve) => {
     const proc = spawn('node', [testFile, resultPath], {
       cwd: ROOT,
-      env: { ...process.env }
+      env: { ...process.env, NODE_PATH }
     });
 
-    // Drain stdout/stderr — required to prevent buffer stall on large output
     proc.stdout.resume();
-    proc.stderr.resume();
+    let stderrOutput = '';
+    proc.stderr.on('data', (data) => { stderrOutput += data.toString(); });
 
     proc.on('close', () => {
       if (fs.existsSync(resultPath)) {
         resolve({ ok: true, id });
       } else {
-        // Puppeteer code didn't save — create fallback at the pre-assigned path
         const result = {
           id,
           routineName: name,
           executedAt: new Date().toISOString(),
           status: 'fail',
           log: '',
-          errors: [{ message: '결과 JSON이 생성되지 않았습니다. 테스트 코드를 확인하세요.', screenshot: null }]
+          errors: [{ message: stderrOutput.trim() || '결과 JSON이 생성되지 않았습니다.', screenshot: null }]
         };
         fs.writeFileSync(resultPath, JSON.stringify(result, null, 2), 'utf8');
         resolve({ ok: true, id });

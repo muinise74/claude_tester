@@ -39,10 +39,11 @@
       <button class="btn btn-secondary" onclick="navigate('routines.html')">← 목록으로</button>
     </div>
 
-    <!-- 뷰/편집 탭 -->
+    <!-- 탭 -->
     <div class="tabs">
       <div class="tab" id="tabView" onclick="setMode('view')">미리보기</div>
       <div class="tab active" id="tabEdit" onclick="setMode('edit')">편집</div>
+      <div class="tab" id="tabCode" onclick="setMode('code')">코드</div>
     </div>
 
     <!-- 편집 모드 -->
@@ -53,6 +54,11 @@
     <!-- 뷰 모드 -->
     <div id="viewPane" style="display:none">
       <div class="md-preview md-body" id="preview"></div>
+    </div>
+
+    <!-- 코드 모드 -->
+    <div id="codePane" style="display:none">
+      <textarea class="editor-area" id="codeEditor" placeholder="생성된 테스트 코드가 없습니다."></textarea>
     </div>
 
     <!-- 편집 모드 액션 -->
@@ -69,6 +75,11 @@
       <button class="btn btn-danger" id="btnCancel" onclick="cancelGenerate()" style="display:none">■ 중단</button>
       <button class="btn btn-success" id="btnRun" onclick="runTest()" disabled>▶ 실행</button>
       <span id="codeStatus" class="text-muted" style="font-size:12px"></span>
+    </div>
+
+    <!-- 코드 모드 액션 -->
+    <div id="codeActions" class="action-bar" style="display:none">
+      <button class="btn btn-secondary" onclick="saveCode()">💾 저장</button>
     </div>
 
     <!-- Generate Log -->
@@ -89,19 +100,33 @@ document.getElementById('routineTitle').textContent = name;
 
 function setMode(mode) {
   currentMode = mode;
-  const isEdit = mode === 'edit';
+  document.getElementById('tabEdit').classList.toggle('active', mode === 'edit');
+  document.getElementById('tabView').classList.toggle('active', mode === 'view');
+  document.getElementById('tabCode').classList.toggle('active', mode === 'code');
+  document.getElementById('editPane').style.display = mode === 'edit' ? 'block' : 'none';
+  document.getElementById('viewPane').style.display = mode === 'view' ? 'block' : 'none';
+  document.getElementById('codePane').style.display = mode === 'code' ? 'block' : 'none';
+  document.getElementById('editActions').style.display = mode === 'edit' ? 'flex' : 'none';
+  document.getElementById('viewActions').style.display = mode === 'view' ? 'flex' : 'none';
+  document.getElementById('codeActions').style.display = mode === 'code' ? 'flex' : 'none';
 
-  document.getElementById('tabEdit').classList.toggle('active', isEdit);
-  document.getElementById('tabView').classList.toggle('active', !isEdit);
-  document.getElementById('editPane').style.display = isEdit ? 'block' : 'none';
-  document.getElementById('viewPane').style.display = isEdit ? 'none' : 'block';
-  document.getElementById('editActions').style.display = isEdit ? 'flex' : 'none';
-  document.getElementById('viewActions').style.display = isEdit ? 'none' : 'flex';
-
-  if (!isEdit) {
-    const content = document.getElementById('editor').value;
-    document.getElementById('preview').innerHTML = marked.parse(content);
+  if (mode === 'view') {
+    document.getElementById('preview').innerHTML = marked.parse(document.getElementById('editor').value);
   }
+  if (mode === 'code') {
+    loadCode();
+  }
+}
+
+async function loadCode() {
+  const code = await window.api.testRead(name);
+  document.getElementById('codeEditor').value = code || '';
+}
+
+async function saveCode() {
+  const content = document.getElementById('codeEditor').value;
+  await window.api.testSave(name, content);
+  showToast('저장되었습니다.');
 }
 
 async function load() {

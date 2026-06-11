@@ -13,6 +13,10 @@ contextBridge.exposeInMainWorld('api', {
   routinesUpdate: (name, content) => ipcRenderer.invoke('routines:update', name, content),
   routinesDelete: (name) => ipcRenderer.invoke('routines:delete', name),
 
+  // Test code
+  testRead: (name) => ipcRenderer.invoke('test:read', name),
+  testSave: (name, content) => ipcRenderer.invoke('test:save', name, content),
+
   // Run
   runGenerate: (name) => ipcRenderer.invoke('run:generate', name),
   runCancel: () => ipcRenderer.invoke('run:cancel'),

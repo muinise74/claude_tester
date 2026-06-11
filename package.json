@@ -32,6 +32,9 @@
         "from": "skills",
         "to": "skills"
       }
+    ],
+    "asarUnpack": [
+      "node_modules/**/*"
     ]
   }
 }
