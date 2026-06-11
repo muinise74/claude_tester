@@ -116,14 +116,18 @@ async function load() {
   const errors = r.errors || [];
   if (errors.length) {
     document.getElementById('errorsSection').style.display = 'block';
-    document.getElementById('errorsList').innerHTML = errors.map((e, i) => `
-      <div class="error-item">
-        <div class="error-msg">[${i + 1}] ${escHtml(e.message || '')}</div>
-        ${e.screenshot
-          ? `<img class="error-screenshot" src="../${e.screenshot}" alt="error screenshot" onclick="window.open('../${e.screenshot}')" />`
-          : '<span class="text-muted" style="font-size:12px">스크린샷 없음</span>'
+    const items = await Promise.all(errors.map(async (e, i) => {
+      let imgHtml = '<span class="text-muted" style="font-size:12px">스크린샷 없음</span>';
+      if (e.screenshot) {
+        const abs = await window.api.resultsScreenshot(e.screenshot);
+        if (abs) {
+          const src = `file:///${abs.replace(/\\/g, '/')}`;
+          imgHtml = `<img class="error-screenshot" src="${src}" alt="error screenshot" onclick="window.open('${src}')" />`;
         }
-      </div>`).join('');
+      }
+      return `<div class="error-item"><div class="error-msg">[${i + 1}] ${escHtml(e.message || '')}</div>${imgHtml}</div>`;
+    }));
+    document.getElementById('errorsList').innerHTML = items.join('');
   }
 }
 

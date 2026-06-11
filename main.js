@@ -6,11 +6,13 @@ const crypto = require('crypto');
 
 const ROOT = app.isPackaged ? path.dirname(process.execPath) : __dirname;
 const SKILLS_DIR = path.join(ROOT, 'skills');
-const ROUTINES_DIR = path.join(ROOT, 'routines');
-const TEST_DIR = path.join(ROOT, 'test');
-const RESULTS_DIR = path.join(ROOT, 'results');
+
+const USER_DATA = app.isPackaged ? app.getPath('userData') : __dirname;
+const ROUTINES_DIR = path.join(USER_DATA, 'routines');
+const TEST_DIR = path.join(USER_DATA, 'test');
+const RESULTS_DIR = path.join(USER_DATA, 'results');
 const SCREENSHOTS_DIR = path.join(RESULTS_DIR, 'screenshots');
-const TEMP_DIR = path.join(ROOT, 'temp');
+const TEMP_DIR = path.join(USER_DATA, 'temp');
 
 // Always returns an id whose .json does not yet exist in RESULTS_DIR
 function uniqueResultId(name) {
@@ -245,18 +247,22 @@ ipcMain.handle('results:delete', (_, id) => {
   const jsonPath = path.join(RESULTS_DIR, `${id}.json`);
   if (!fs.existsSync(jsonPath)) return { ok: false };
 
-  // Delete associated screenshots first
   try {
     const data = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
     const screenshots = (data.errors || []).map(e => e.screenshot).filter(Boolean);
     for (const rel of screenshots) {
-      const abs = path.join(ROOT, rel);
+      const abs = path.join(USER_DATA, rel);
       if (fs.existsSync(abs)) fs.unlinkSync(abs);
     }
   } catch {}
 
   fs.unlinkSync(jsonPath);
   return { ok: true };
+});
+
+ipcMain.handle('results:screenshot', (_, rel) => {
+  const abs = path.join(USER_DATA, rel);
+  return fs.existsSync(abs) ? abs : null;
 });
 
 // ── Claude Usage ──────────────────────────────────────────

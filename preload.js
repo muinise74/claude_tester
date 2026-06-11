@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('api', {
   resultsList: () => ipcRenderer.invoke('results:list'),
   resultsRead: (id) => ipcRenderer.invoke('results:read', id),
   resultsDelete: (id) => ipcRenderer.invoke('results:delete', id),
+  resultsScreenshot: (rel) => ipcRenderer.invoke('results:screenshot', rel),
 
   // Claude usage
   claudeUsage: () => ipcRenderer.invoke('claude:usage'),
