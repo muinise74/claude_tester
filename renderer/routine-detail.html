@@ -227,6 +227,51 @@ function showToast(msg, isError = false) {
 }
 
 load();
+
+// ── Tab / Shift+Tab indent ────────────────────────────────
+(function() {
+  function handleTab(e) {
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+    const ta = e.target;
+    const start = ta.selectionStart;
+    const end   = ta.selectionEnd;
+    const val   = ta.value;
+    const INDENT = '  ';
+
+    if (start === end) {
+      if (!e.shiftKey) {
+        ta.value = val.slice(0, start) + INDENT + val.slice(end);
+        ta.selectionStart = ta.selectionEnd = start + 2;
+      } else {
+        const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+        const before = val.slice(lineStart, start);
+        const remove = before.startsWith('  ') ? 2 : before.startsWith(' ') ? 1 : 0;
+        if (remove) {
+          ta.value = val.slice(0, lineStart) + val.slice(lineStart + remove);
+          ta.selectionStart = ta.selectionEnd = start - remove;
+        }
+      }
+    } else {
+      const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+      const lines = val.slice(lineStart, end).split('\n');
+      const newLines = lines.map(line => {
+        if (!e.shiftKey) return INDENT + line;
+        if (line.startsWith('  ')) return line.slice(2);
+        if (line.startsWith(' '))  return line.slice(1);
+        return line;
+      });
+      const newBlock = newLines.join('\n');
+      ta.value = val.slice(0, lineStart) + newBlock + val.slice(end);
+      ta.selectionStart = lineStart;
+      ta.selectionEnd   = lineStart + newBlock.length;
+    }
+  }
+
+  ['editor', 'codeEditor'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', handleTab);
+  });
+})();
 </script>
 </body>
 </html>

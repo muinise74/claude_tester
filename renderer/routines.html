@@ -7,7 +7,6 @@
 </head>
 <body>
 <div class="layout">
-  <!-- Sidebar -->
   <nav class="sidebar">
     <div class="sidebar-logo">🤖 Test Runner<br><span>Puppeteer + Claude</span></div>
     <a class="nav-item" onclick="navigate('skills.html')">📦 스킬</a>
@@ -17,7 +16,6 @@
     <a class="nav-item" onclick="navigate('info.html')">ℹ️ 정보</a>
   </nav>
 
-  <!-- Main -->
   <main class="main">
     <div class="page-header">
       <div>
@@ -28,6 +26,8 @@
     </div>
 
     <div id="list"></div>
+    <div id="sentinel" style="height:1px"></div>
+    <div id="loadingMore" style="display:none;text-align:center;padding:16px;color:var(--text-muted);font-size:13px">불러오는 중...</div>
   </main>
 </div>
 
@@ -46,23 +46,45 @@
 <script>
 function navigate(page) { window.api.navigate(page); }
 
-async function load() {
-  const names = await window.api.routinesList();
+let offset = 0;
+let hasMore = true;
+let loading = false;
+
+function renderItems(items) {
   const el = document.getElementById('list');
-  if (!names.length) {
+  if (offset === 0 && !items.length) {
     el.innerHTML = `<div class="empty"><p>루틴이 없습니다.<br>+ 새 루틴으로 시작하세요.</p></div>`;
     return;
   }
-  el.innerHTML = names.map(n => `
-    <div class="card" onclick="openRoutine('${n}')">
+  const fragment = items.map(n => {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.onclick = () => openRoutine(n);
+    div.innerHTML = `
       <div class="row">
         <div class="flex-1">
           <div class="card-title">📄 ${n}</div>
           <div class="card-meta">${n}.md</div>
         </div>
         <button class="btn btn-danger" onclick="event.stopPropagation(); deleteRoutine('${n}')">삭제</button>
-      </div>
-    </div>`).join('');
+      </div>`;
+    return div;
+  });
+  fragment.forEach(div => el.appendChild(div));
+}
+
+async function loadMore() {
+  if (loading || !hasMore) return;
+  loading = true;
+  document.getElementById('loadingMore').style.display = 'block';
+
+  const res = await window.api.routinesList({ offset });
+  hasMore = res.hasMore;
+  offset += res.items.length;
+  renderItems(res.items);
+
+  document.getElementById('loadingMore').style.display = 'none';
+  loading = false;
 }
 
 function openRoutine(name) {
@@ -73,7 +95,10 @@ function openRoutine(name) {
 async function deleteRoutine(name) {
   if (!confirm(`"${name}" 루틴을 삭제할까요?`)) return;
   await window.api.routinesDelete(name);
-  load();
+  // 목록 초기화 후 재로드
+  offset = 0; hasMore = true;
+  document.getElementById('list').innerHTML = '';
+  loadMore();
 }
 
 function showCreate() {
@@ -96,7 +121,13 @@ async function createRoutine() {
 
 document.getElementById('newName').addEventListener('keydown', e => { if (e.key === 'Enter') createRoutine(); });
 
-load();
+// IntersectionObserver 무한 스크롤
+const observer = new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting) loadMore();
+}, { rootMargin: '100px' });
+observer.observe(document.getElementById('sentinel'));
+
+loadMore();
 </script>
 </body>
 </html>

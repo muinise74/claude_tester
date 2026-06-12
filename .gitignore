@@ -11,6 +11,7 @@ out/
 # Test artifacts (generated at runtime)
 test/
 results/
+routines/
 
 # IDE
 .idea/

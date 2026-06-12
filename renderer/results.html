@@ -4,6 +4,47 @@
 <meta charset="UTF-8">
 <title>결과 목록</title>
 <link rel="stylesheet" href="style.css">
+<style>
+  .search-bar {
+    display: flex; gap: 8px; align-items: center;
+    margin-bottom: 16px;
+  }
+  .search-bar input {
+    flex: 1; padding: 8px 12px; font-size: 13px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface); color: var(--text); outline: none;
+  }
+  .search-bar input:focus { border-color: var(--accent); }
+  .filter-btn {
+    padding: 7px 14px; font-size: 12px; font-weight: 600;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface); color: var(--text-muted);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .search-btn { background: var(--accent-hover); color: #fff; border-color: var(--accent-hover); }
+  .search-btn:hover { background: var(--accent); border-color: var(--accent); }
+  #loadingMore {
+    animation: fadeIn 0.2s ease;
+  }
+  #loadingMore.hiding {
+    animation: fadeOut 0.25s ease forwards;
+  }
+  .loading-indicator {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 60px 20px; color: var(--text-muted); font-size: 14px; font-weight: 500;
+  }
+  .loading-spinner {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin    { to { transform: rotate(360deg); } }
+  @keyframes fadeIn  { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(6px); } }
+</style>
 </head>
 <body>
 <div class="layout">
@@ -22,9 +63,24 @@
         <div class="page-title">결과</div>
         <div class="page-subtitle">테스트 실행 결과 목록</div>
       </div>
-      <button class="btn btn-secondary" onclick="load()">↻ 새로고침</button>
     </div>
+
+    <div class="search-bar">
+      <button class="filter-btn active" id="filterAll" onclick="setFilter('')">전체</button>
+      <button class="filter-btn" id="filterSuccess" onclick="setFilter('success')">✓ 성공</button>
+      <button class="filter-btn" id="filterFail" onclick="setFilter('fail')">✗ 실패</button>
+      <input type="text" id="searchInput" placeholder="루틴명 검색..." autocomplete="off" onkeydown="if(event.key==='Enter') doSearch()">
+      <button class="filter-btn search-btn" onclick="doSearch()">검색</button>
+    </div>
+
     <div id="list"></div>
+    <div id="sentinel" style="height:1px"></div>
+    <div id="loadingMore" style="display:none">
+      <div class="loading-indicator">
+        <span class="loading-spinner"></span>
+        불러오는 중...
+      </div>
+    </div>
   </main>
 </div>
 
@@ -32,19 +88,43 @@
 function navigate(page) { window.api.navigate(page); }
 
 function fmt(iso) {
-  const d = new Date(iso);
-  return d.toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  return new Date(iso).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' });
 }
 
-async function load() {
-  const results = await window.api.resultsList();
+let offset = 0;
+let hasMore = true;
+let loading = false;
+let currentQuery = '';
+let currentStatus = '';
+
+function reset() {
+  offset = 0;
+  hasMore = true;
+  document.getElementById('list').innerHTML = '';
+}
+
+function setFilter(status) {
+  currentStatus = status;
+  ['filterAll','filterSuccess','filterFail'].forEach(id =>
+    document.getElementById(id).classList.remove('active')
+  );
+  const map = { '': 'filterAll', 'success': 'filterSuccess', 'fail': 'filterFail' };
+  document.getElementById(map[status]).classList.add('active');
+  reset();
+  loadMore();
+}
+
+function renderItems(items) {
   const el = document.getElementById('list');
-  if (!results.length) {
-    el.innerHTML = `<div class="empty"><p>아직 실행 결과가 없습니다.<br>루틴을 실행하면 여기에 표시됩니다.</p></div>`;
+  if (offset === 0 && !items.length) {
+    el.innerHTML = `<div class="empty"><p>결과가 없습니다.</p></div>`;
     return;
   }
-  el.innerHTML = results.map(r => `
-    <div class="card" onclick="openResult('${r.id}')">
+  items.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.onclick = () => openResult(r.id);
+    div.innerHTML = `
       <div class="row">
         <div class="flex-1">
           <div class="card-title">📄 ${r.routineName}</div>
@@ -52,8 +132,37 @@ async function load() {
         </div>
         <span class="badge badge-${r.status}">${r.status === 'success' ? '✓ 성공' : '✗ 실패'}</span>
         <button class="btn btn-danger" onclick="event.stopPropagation(); deleteResult('${r.id}')">삭제</button>
-      </div>
-    </div>`).join('');
+      </div>`;
+    el.appendChild(div);
+  });
+}
+
+async function loadMore() {
+  if (loading || !hasMore) return;
+  loading = true;
+
+  const loadingEl = document.getElementById('loadingMore');
+  loadingEl.classList.remove('hiding');
+  loadingEl.style.display = 'block';
+
+  const [res] = await Promise.all([
+    window.api.resultsList({ offset, query: currentQuery, status: currentStatus }),
+    new Promise(r => setTimeout(r, 500))
+  ]);
+
+  // fade-out 후 숨기기
+  await new Promise(r => {
+    loadingEl.classList.add('hiding');
+    loadingEl.addEventListener('animationend', r, { once: true });
+  });
+  loadingEl.style.display = 'none';
+  loadingEl.classList.remove('hiding');
+
+  hasMore = res.hasMore;
+  offset += res.items.length;
+  renderItems(res.items);
+
+  loading = false;
 }
 
 function openResult(id) {
@@ -63,10 +172,23 @@ function openResult(id) {
 
 async function deleteResult(id) {
   await window.api.resultsDelete(id);
-  load();
+  reset();
+  loadMore();
 }
 
-load();
+function doSearch() {
+  currentQuery = document.getElementById('searchInput').value.trim();
+  reset();
+  loadMore();
+}
+
+// IntersectionObserver 무한 스크롤
+const observer = new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting) loadMore();
+}, { rootMargin: '100px' });
+observer.observe(document.getElementById('sentinel'));
+
+loadMore();
 </script>
 </body>
 </html>

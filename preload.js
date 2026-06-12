@@ -7,7 +7,7 @@ contextBridge.exposeInMainWorld('api', {
   skillsSaveDialog: (name) => ipcRenderer.invoke('skills:save-dialog', name),
 
   // Routines
-  routinesList: () => ipcRenderer.invoke('routines:list'),
+  routinesList: (params) => ipcRenderer.invoke('routines:list', params),
   routinesCreate: (name) => ipcRenderer.invoke('routines:create', name),
   routinesRead: (name) => ipcRenderer.invoke('routines:read', name),
   routinesUpdate: (name, content) => ipcRenderer.invoke('routines:update', name, content),
@@ -24,7 +24,7 @@ contextBridge.exposeInMainWorld('api', {
   runHasCode: (name) => ipcRenderer.invoke('run:has-code', name),
 
   // Results
-  resultsList: () => ipcRenderer.invoke('results:list'),
+  resultsList: (params) => ipcRenderer.invoke('results:list', params),
   resultsRead: (id) => ipcRenderer.invoke('results:read', id),
   resultsDelete: (id) => ipcRenderer.invoke('results:delete', id),
   resultsScreenshot: (rel) => ipcRenderer.invoke('results:screenshot', rel),
