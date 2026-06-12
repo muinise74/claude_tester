@@ -235,7 +235,7 @@ ipcMain.handle('run:has-code', (_, name) => {
 });
 
 // ── Run: Execute ──────────────────────────────────────────
-ipcMain.handle('run:execute', async (event, name) => {
+ipcMain.handle('run:execute', async (event, name, vars = []) => {
   const testFile = path.join(TEST_DIR, `${name}.js`);
 
   if (!fs.existsSync(testFile)) {
@@ -262,7 +262,7 @@ ipcMain.handle('run:execute', async (event, name) => {
     : path.join(__dirname, 'node_modules');
 
   return new Promise((resolve) => {
-    const proc = spawn('node', [testFile, resultPath], {
+    const proc = spawn('node', [testFile, resultPath, ...vars], {
       cwd: ROOT,
       env: { ...process.env, NODE_PATH }
     });

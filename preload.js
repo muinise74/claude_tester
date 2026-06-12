@@ -20,7 +20,7 @@ contextBridge.exposeInMainWorld('api', {
   // Run
   runGenerate: (name) => ipcRenderer.invoke('run:generate', name),
   runCancel: () => ipcRenderer.invoke('run:cancel'),
-  runExecute: (name) => ipcRenderer.invoke('run:execute', name),
+  runExecute: (name, vars) => ipcRenderer.invoke('run:execute', name, vars),
   runHasCode: (name) => ipcRenderer.invoke('run:has-code', name),
 
   // Results

@@ -17,6 +17,10 @@
   .action-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
   .section-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
   .generate-log { margin-top: 16px; }
+  .vars-section { margin-top: 14px; }
+  .vars-row { display: flex; gap: 8px; align-items: center; }
+  .vars-row input { flex: 1; padding: 7px 10px; font-size: 13px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); outline: none; }
+  .vars-row input:focus { border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -52,8 +56,15 @@
     </div>
 
     <!-- 뷰 모드 -->
-    <div id="viewPane" style="display:none">
+    <div id="viewPane" style="display:none;position:relative">
       <div class="md-preview md-body" id="preview"></div>
+      <div id="generateBtnWrap" style="position:absolute;top:12px;right:12px;display:flex;gap:8px">
+        <button class="btn btn-primary" id="btnGenerate" onclick="generateCode()">
+          <span class="spinner" id="genSpinner" style="display:none"></span>
+          ⚡ 테스트 코드 생성
+        </button>
+        <button class="btn btn-danger" id="btnCancel" onclick="cancelGenerate()" style="display:none">■ 중단</button>
+      </div>
     </div>
 
     <!-- 코드 모드 -->
@@ -67,14 +78,12 @@
     </div>
 
     <!-- 미리보기 모드 액션 -->
-    <div id="viewActions" class="action-bar" style="display:none">
-      <button class="btn btn-primary" id="btnGenerate" onclick="generateCode()">
-        <span class="spinner" id="genSpinner" style="display:none"></span>
-        ⚡ 테스트 코드 생성
-      </button>
-      <button class="btn btn-danger" id="btnCancel" onclick="cancelGenerate()" style="display:none">■ 중단</button>
-      <button class="btn btn-success" id="btnRun" onclick="runTest()" disabled>▶ 실행</button>
-      <span id="codeStatus" class="text-muted" style="font-size:12px"></span>
+    <div id="viewActions" style="display:none">
+      <div id="varsBar" style="display:none;margin-top:8px;flex-wrap:wrap;gap:8px;align-items:center">
+        <div id="varsSection" style="display:contents"></div>
+        <button class="btn btn-secondary" id="btnAddVar" onclick="addVar()">+ 변수 추가</button>
+        <button class="btn btn-success" id="btnRun" onclick="runTest()" disabled>▶ 실행</button>
+      </div>
     </div>
 
     <!-- 코드 모드 액션 -->
@@ -107,7 +116,7 @@ function setMode(mode) {
   document.getElementById('viewPane').style.display = mode === 'view' ? 'block' : 'none';
   document.getElementById('codePane').style.display = mode === 'code' ? 'block' : 'none';
   document.getElementById('editActions').style.display = mode === 'edit' ? 'flex' : 'none';
-  document.getElementById('viewActions').style.display = mode === 'view' ? 'flex' : 'none';
+  document.getElementById('viewActions').style.display = mode === 'view' ? 'block' : 'none';
   document.getElementById('codeActions').style.display = mode === 'code' ? 'flex' : 'none';
 
   if (mode === 'view') {
@@ -143,11 +152,23 @@ async function load() {
 async function checkCodeExists() {
   const has = await window.api.runHasCode(name);
   document.getElementById('btnRun').disabled = !has;
-  document.getElementById('codeStatus').textContent = has
-    ? '✅ 테스트 코드 있음'
-    : '⚪ 테스트 코드 없음';
+  document.getElementById('varsBar').style.display = has ? 'flex' : 'none';
   document.getElementById('tabCode').style.display = has ? '' : 'none';
   if (!has && currentMode === 'code') setMode('view');
+}
+
+function addVar() {
+  const section = document.getElementById('varsSection');
+  const row = document.createElement('div');
+  row.className = 'vars-row';
+  row.innerHTML = `
+    <input type="text" placeholder="값 입력...">
+    <button class="btn btn-danger" onclick="this.closest('.vars-row').remove()">−</button>`;
+  section.appendChild(row);
+}
+
+function getVars() {
+  return Array.from(document.querySelectorAll('.vars-row input')).map(i => i.value);
 }
 
 async function saveRoutine() {
@@ -193,6 +214,8 @@ async function generateCode() {
 
 async function cancelGenerate() {
   await window.api.runCancel();
+  document.getElementById('logSection').style.display = 'none';
+  document.getElementById('logStream').textContent = '';
 }
 
 async function runTest() {
@@ -200,7 +223,7 @@ async function runTest() {
   btn.disabled = true;
   btn.textContent = '⏳ 실행 중...';
 
-  const res = await window.api.runExecute(name);
+  const res = await window.api.runExecute(name, getVars());
   btn.textContent = '▶ 실행';
   checkCodeExists();
 
