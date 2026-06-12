@@ -215,6 +215,28 @@ CREATE TABLE results (
 
 ---
 
+## Electron + Puppeteer 샌드박스 충돌
+
+Electron은 Chromium 기반이다. 그 안에서 Puppeteer가 또 Chromium을 띄우면 "Chromium 안의 Chromium" 구조가 되어 샌드박스 정책이 충돌한다.
+
+증상: Puppeteer 코드를 한 번 실행하고 나면 Electron 앱 자체가 이상해짐 (`RESULT_CODE_KILLED_BAD_MESSAGE` 에러). 내부 Chromium의 렌더러 프로세스가 샌드박스 메시지 검증에서 걸려 강제 종료되고, 이 과정이 Electron 자체 프로세스에도 영향을 미친다.
+
+해결책: Puppeteer 실행 시 아래 args를 반드시 포함한다. SKILL.md 코드 템플릿에 기본값으로 포함되어 있다.
+
+```javascript
+const browser = await puppeteer.launch({
+  headless: true,
+  args: [
+    '--no-sandbox',           // 샌드박스 비활성화
+    '--disable-setuid-sandbox', // setuid 샌드박스 비활성화
+    '--disable-dev-shm-usage',  // 공유 메모리 충돌 방지
+    '--disable-gpu',            // GPU 프로세스 충돌 방지
+  ]
+});
+```
+
+---
+
 ## 빌드
 
 ```bash

@@ -102,7 +102,15 @@ const errors = [];
 const logs = [];
 
 (async () => {
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+    ]
+  });
   const page = await browser.newPage();
   const startedAt = new Date().toISOString();
   let status = 'success';
