@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>루틴 목록</title>
 <link rel="stylesheet" href="style.css">
+<script src="dialog.js"></script>
 </head>
 <body>
 <div class="layout">
@@ -93,7 +94,7 @@ function openRoutine(name) {
 }
 
 async function deleteRoutine(name) {
-  if (!confirm(`"${name}" 루틴을 삭제할까요?`)) return;
+  if (!await showConfirm(`"${name}" 루틴을 삭제할까요?`)) return;
   await window.api.routinesDelete(name);
   // 목록 초기화 후 재로드
   offset = 0; hasMore = true;
@@ -112,7 +113,7 @@ async function createRoutine() {
   const name = document.getElementById('newName').value.trim();
   if (!name) return;
   const res = await window.api.routinesCreate(name);
-  if (!res.ok) { alert(res.error); return; }
+  if (!res.ok) { await showAlert(res.error); return; }
   hideCreate();
   sessionStorage.setItem('routineName', res.name);
   sessionStorage.setItem('routineIsNew', '1');

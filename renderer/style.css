@@ -195,6 +195,9 @@ pre, .code-block {
 }
 .modal h3 { margin-bottom: 16px; font-size: 18px; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+.dialog-modal { min-width: 320px; max-width: 420px; animation: dialogIn 0.15s ease; }
+.dialog-message { font-size: 14px; line-height: 1.6; color: var(--text); word-break: break-word; }
+@keyframes dialogIn { from { opacity: 0; transform: scale(0.96) translateY(-6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
 /* Tabs */
 .tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 20px; }
